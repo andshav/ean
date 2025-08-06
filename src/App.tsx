@@ -140,11 +140,14 @@ const EANGenerator: React.FC = () => {
       </Box>
 
       <Box>
-        {allCodes.map((code, index) => (
-          <Box key={index} p={2} borderWidth={1} borderRadius="md" mt={1}>
-            {code}
-          </Box>
-        ))}
+        {allCodes.map(
+          (code, index) =>
+            code && (
+              <Box key={index} p={2} borderWidth={1} borderRadius="md" mt={1}>
+                {code}
+              </Box>
+            )
+        )}
       </Box>
     </VStack>
   );
