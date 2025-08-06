@@ -1,4 +1,4 @@
-import React, { useEffect, useState, type ChangeEvent } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -47,7 +47,6 @@ const EANGenerator: React.FC = () => {
 
       // Update current codes and save new file
       setAllCodes(loadedCodes);
-      saveCurrentFile(data);
 
       // Archive old file with timestamp
       archiveOldFile();
@@ -64,12 +63,6 @@ const EANGenerator: React.FC = () => {
     // For demonstration, you would use server logic or file system package to rename/move the file
     console.log(`Archiving old file as: ${oldFileName}`);
     // This would typically involve backend logic to actually move/rename the file
-  };
-
-  const saveCurrentFile = (data: ArrayBuffer) => {
-    // Save the new uploaded file as current_codes.xlsx
-    const newBlob = new Blob([data], { type: "application/octet-stream" });
-    saveAs(newBlob, "current_codes.xlsx");
   };
 
   const generateCodes = () => {
