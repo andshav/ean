@@ -153,21 +153,18 @@ export default function App() {
         </Box>
         <Box>
           <Text mt={4} fontWeight="bold">
-            Использованные коды (первые 10):
+            Использованные коды
           </Text>
           <Box
-            maxH="120px"
+            maxH="200px"
             overflowY="auto"
             borderWidth={1}
             p={2}
             borderRadius="md"
           >
-            {usedCodes.slice(0, 10).map((code) => (
+            {usedCodes.map((code) => (
               <Text key={code}>{code}</Text>
             ))}
-            {usedCodes.length > 10 && (
-              <Text>...и еще {usedCodes.length - 10}</Text>
-            )}
           </Box>
         </Box>
       </Stack>
