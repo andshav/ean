@@ -13,7 +13,7 @@ import { saveAs } from "file-saver";
 const EANGenerator: React.FC = () => {
   const [allCodes, setAllCodes] = useState<string[]>([]);
   const [newCodes, setNewCodes] = useState<string[]>([]);
-  const [mask, setMask] = useState<string>("460255xxxxxx");
+  const [mask, setMask] = useState<string>("160x");
   const [quantity, setQuantity] = useState<number>(1);
 
   useEffect(() => {
@@ -67,13 +67,15 @@ const EANGenerator: React.FC = () => {
 
   const generateCodes = () => {
     const generatedCodes: string[] = [];
+    const formattedMask = mask.padEnd(12, "x");
+    console.log("formattedMask", formattedMask);
     while (generatedCodes.length < quantity) {
       const randomPart = Array.from(
-        { length: (mask.match(/x/g) || []).length },
+        { length: (formattedMask.match(/x/g) || []).length },
         () => Math.floor(Math.random() * 10)
       ).join("");
 
-      const baseCode = mask.replace(
+      const baseCode = formattedMask.replace(
         /x/g,
         (_, idx) => randomPart.split("")[idx % randomPart.length]
       );
@@ -137,17 +139,6 @@ const EANGenerator: React.FC = () => {
             {code}
           </Box>
         ))}
-      </Box>
-
-      <Box>
-        {allCodes.map(
-          (code, index) =>
-            code && (
-              <Box key={index} p={2} borderWidth={1} borderRadius="md" mt={1}>
-                {code}
-              </Box>
-            )
-        )}
       </Box>
     </VStack>
   );
