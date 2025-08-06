@@ -1,147 +1,176 @@
-import React, { useEffect, useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Button,
   Input,
+  Stack,
   Heading,
-  VStack,
   NumberInput,
+  Text,
 } from "@chakra-ui/react";
+import axios from "axios";
 import * as XLSX from "xlsx";
-import { saveAs } from "file-saver";
 
-const EANGenerator: React.FC = () => {
-  const [allCodes, setAllCodes] = useState<string[]>([]);
-  const [newCodes, setNewCodes] = useState<string[]>([]);
-  const [mask, setMask] = useState<string>("160x");
-  const [quantity, setQuantity] = useState<number>(1);
+import { toaster } from "./components/ui/toaster";
+import { generateEANs } from "./utils/ean";
+
+const API = "https://ean-back.onrender.com/api";
+
+export default function App() {
+  const [mask, setMask] = useState("160x");
+  const [count, setCount] = useState(1);
+  const [codes, setCodes] = useState<string[]>([]);
+  const [file, setFile] = useState<File | null>(null);
+  const [usedCodes, setUsedCodes] = useState<string[]>([]);
+
+  const [isGenerating, setIsGenerating] = useState(false);
 
   useEffect(() => {
-    fetch("/codes.xlsx")
-      .then((response) => response.arrayBuffer())
-      .then((data) => {
-        const workbook = XLSX.read(data, { type: "array" });
-        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-        const loadedCodes = XLSX.utils
-          .sheet_to_json<string[]>(worksheet, { header: 1 })
-          .map((row) => row[0]);
-        setAllCodes(loadedCodes);
-      })
-      .catch((error) => {
-        console.error("Error loading Excel file:", error);
-      });
+    fetchUsedCodes();
   }, []);
 
-  const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      const data = new Uint8Array(e.target?.result as ArrayBuffer);
-      const workbook = XLSX.read(data, { type: "array" });
-      const worksheet = workbook.Sheets[workbook.SheetNames[0]];
-      const loadedCodes = XLSX.utils
-        .sheet_to_json<string[]>(worksheet, { header: 1 })
-        .map((row) => row[0]);
-
-      // Update current codes and save new file
-      setAllCodes(loadedCodes);
-
-      // Archive old file with timestamp
-      archiveOldFile();
-    };
-
-    reader.readAsArrayBuffer(file);
+  const fetchUsedCodes = async () => {
+    const res = await axios.get<string[]>(`${API}/codes`);
+    setUsedCodes(res.data);
   };
 
-  const archiveOldFile = () => {
-    const timestamp = new Date().getTime();
-
-    const oldFileName = `codes_old_${timestamp}.xlsx`;
-
-    // For demonstration, you would use server logic or file system package to rename/move the file
-    console.log(`Archiving old file as: ${oldFileName}`);
-    // This would typically involve backend logic to actually move/rename the file
-  };
-
-  const generateCodes = () => {
-    const generatedCodes: string[] = [];
-    const formattedMask = mask.padEnd(12, "x");
-    console.log("formattedMask", formattedMask);
-    while (generatedCodes.length < quantity) {
-      const randomPart = Array.from(
-        { length: (formattedMask.match(/x/g) || []).length },
-        () => Math.floor(Math.random() * 10)
-      ).join("");
-
-      const baseCode = formattedMask.replace(
-        /x/g,
-        (_, idx) => randomPart.split("")[idx % randomPart.length]
-      );
-      const checkDigit = calculateCheckDigit(baseCode);
-      const newCode = `${baseCode}${checkDigit}`;
-
-      if (!allCodes.includes(newCode) && !generatedCodes.includes(newCode)) {
-        generatedCodes.push(newCode);
-      }
+  const handleGenerate = async () => {
+    if (isGenerating) {
+      return;
     }
-    setAllCodes((prevCodes) => [...prevCodes, ...generatedCodes]);
-    setNewCodes(generatedCodes);
+    try {
+      setIsGenerating(true);
+      const newCodes = generateEANs(mask, count, usedCodes);
+      setCodes(newCodes);
+      setUsedCodes((prev) => [...prev, ...newCodes]);
+      toaster.success({ title: "Коды сгенерированы" });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      toaster.error({
+        title: "Ошибка генерации",
+        description: e?.message,
+      });
+      setIsGenerating(false);
+    }
   };
 
-  const calculateCheckDigit = (code: string): number => {
-    const digits = code.split("").map(Number);
-    const sum = digits.reduce(
-      (acc, num, idx) => acc + num * (idx % 2 === 0 ? 1 : 3),
-      0
-    );
-    return (10 - (sum % 10)) % 10;
+  const handleDownload = () => {
+    window.open(`${API}/codes/download`, "_blank");
   };
 
-  const downloadCodes = () => {
-    const worksheet = XLSX.utils.aoa_to_sheet(allCodes.map((code) => [code]));
-    const workbook = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(workbook, worksheet, "Codes");
-    const workbookOut = XLSX.write(workbook, {
-      bookType: "xlsx",
-      type: "array",
-    });
-    const timestamp = new Date().getTime();
-    saveAs(new Blob([workbookOut]), `ean_codes_${timestamp}.xlsx`);
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFile(e.target.files?.[0] || null);
   };
+
+  const handleUpload = async () => {
+    if (!file) return;
+    const formData = new FormData();
+    formData.append("file", file);
+    await axios.post(`${API}/codes/upload`, formData);
+    fetchUsedCodes();
+    toaster.success({ title: "Файл загружен" });
+  };
+
+  // Сохранить новые коды в XLSX и отправить на сервер
+  const handleSaveToServer = async () => {
+    if (codes.length === 0) return;
+    setIsGenerating(true);
+    // Загрузить существующие коды
+    const allCodes = usedCodes.map((code) => [code]);
+    console.log({ usedCodes });
+    const ws = XLSX.utils.aoa_to_sheet(allCodes);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "Codes");
+    const wbout = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+    const blob = new Blob([wbout], { type: "application/octet-stream" });
+    const formData = new FormData();
+    formData.append("file", new File([blob], "ean_codes.xlsx"));
+    try {
+      await axios.post(`${API}/codes/update`, formData);
+      toaster.success({ title: "Коды добавлены и сохранены" });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      toaster.error({
+        title: e.message,
+      });
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
+  useEffect(() => {
+    handleSaveToServer();
+  }, [usedCodes]);
 
   return (
-    <VStack gap={4} mt={5}>
-      <Heading>EAN Code Generator</Heading>
-      <Input type="file" accept=".xlsx" onChange={handleFileUpload} />
-      <Input
-        placeholder="Enter the mask (e.g., 460255xxxxxx)"
-        value={mask}
-        onChange={(e) => setMask(e.target.value)}
-      />
-      <NumberInput.Root
-        onValueChange={(e) => setQuantity(+e.value)}
-        defaultValue={`${quantity}`}
-      >
-        <NumberInput.Control />
-        <NumberInput.Input />
-      </NumberInput.Root>
-      <Button colorScheme="teal" onClick={generateCodes}>
-        Generate EAN Codes
-      </Button>
-      <Button colorScheme="blue" onClick={downloadCodes}>
-        Download Codes
-      </Button>
-      <Box>
-        {newCodes.map((code, index) => (
-          <Box key={index} p={2} borderWidth={1} borderRadius="md" mt={1}>
-            {code}
+    <Box maxW="700px" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="lg">
+      <Heading mb={4}>Генерация EAN-кодов</Heading>
+      <Stack gap={4}>
+        <Box>
+          <Text>Маска</Text>
+          <Input
+            value={mask}
+            onChange={(e) => setMask(e.target.value)}
+            maxLength={12}
+          />
+        </Box>
+        <Box>
+          <Text>Количество кодов</Text>
+          <NumberInput.Root
+            onValueChange={(e) => setCount(+e.value)}
+            defaultValue={`${count}`}
+          >
+            <NumberInput.Control />
+            <NumberInput.Input />
+          </NumberInput.Root>
+        </Box>
+        <Button colorScheme="blue" onClick={handleGenerate}>
+          Сгенерировать
+        </Button>
+        {codes.length > 0 && (
+          <Box>
+            {codes.map((code, index) => (
+              <Box key={index} p={2} borderWidth={1} borderRadius="md" mt={1}>
+                {code}
+              </Box>
+            ))}
           </Box>
-        ))}
-      </Box>
-    </VStack>
+        )}
+        <Box>
+          <Button onClick={handleDownload} colorScheme="green" mr={2}>
+            Скачать xlsx
+          </Button>
+          <Input
+            type="file"
+            accept=".xlsx"
+            onChange={handleFileChange}
+            display="inline-block"
+            width="auto"
+          />
+          <Button onClick={handleUpload} colorScheme="orange" ml={2}>
+            Загрузить новый xlsx
+          </Button>
+        </Box>
+        <Box>
+          <Text mt={4} fontWeight="bold">
+            Использованные коды (первые 10):
+          </Text>
+          <Box
+            maxH="120px"
+            overflowY="auto"
+            borderWidth={1}
+            p={2}
+            borderRadius="md"
+          >
+            {usedCodes.slice(0, 10).map((code) => (
+              <Text key={code}>{code}</Text>
+            ))}
+            {usedCodes.length > 10 && (
+              <Text>...и еще {usedCodes.length - 10}</Text>
+            )}
+          </Box>
+        </Box>
+      </Stack>
+    </Box>
   );
-};
-
-export default EANGenerator;
+}
