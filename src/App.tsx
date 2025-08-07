@@ -36,6 +36,8 @@ export default function App() {
 
   const [isGenerating, setIsGenerating] = useState(false);
   const [isFetching, setIsFetching] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [isAppending, setIsAppending] = useState(false);
 
   useEffect(() => {
     fetchUsedCodes();
@@ -104,6 +106,7 @@ export default function App() {
 
   const handleUpload = async (file: File) => {
     const reader = new FileReader();
+    setIsUploading(true);
     reader.onload = async (e) => {
       const data = new Uint8Array(e.target?.result as ArrayBuffer);
       const workbook = XLSX.read(data, { type: "array" });
@@ -114,10 +117,21 @@ export default function App() {
         .flat()
         .map(String) as string[];
 
-      await addCodeCollection(codes);
-      toaster.success({
-        title: "Загружен новый список",
-      });
+      try {
+        await addCodeCollection(codes);
+        toaster.success({
+          title: "Загружен новый список",
+        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (e: any) {
+        toaster.error({
+          title: "Ошибка загрузки нового списка",
+          description: e.message,
+        });
+      } finally {
+        setIsUploading(false);
+      }
+
       fetchUsedCodes();
     };
     reader.readAsArrayBuffer(file);
@@ -125,6 +139,7 @@ export default function App() {
 
   const handleAppend = async (file: File) => {
     const reader = new FileReader();
+    setIsAppending(true);
     reader.onload = async (e) => {
       const data = new Uint8Array(e.target?.result as ArrayBuffer);
       const workbook = XLSX.read(data, { type: "array" });
@@ -147,6 +162,7 @@ export default function App() {
       });
 
       await updateList(prepareList);
+      setIsAppending(false);
     };
     reader.readAsArrayBuffer(file);
   };
@@ -270,7 +286,7 @@ export default function App() {
         >
           <FileUpload.HiddenInput />
           <FileUpload.Trigger asChild>
-            <Button width="full" colorPalette="green">
+            <Button width="full" colorPalette="green" loading={isAppending}>
               <HiPlus /> Расширить список
             </Button>
           </FileUpload.Trigger>
@@ -287,7 +303,7 @@ export default function App() {
         >
           <FileUpload.HiddenInput />
           <FileUpload.Trigger asChild>
-            <Button width="full" colorPalette="orange">
+            <Button width="full" colorPalette="orange" loading={isUploading}>
               <HiUpload /> Загрузить новый список
             </Button>
           </FileUpload.Trigger>
