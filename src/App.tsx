@@ -116,7 +116,7 @@ export default function App() {
       const codes = XLSX.utils
         .sheet_to_json(worksheet, { header: 1 })
         .flat()
-        .map(String) as string[];
+        .map((code) => String(code).split(" ")[0]);
 
       try {
         await addCodeCollection(codes);
@@ -149,7 +149,7 @@ export default function App() {
       const newCodes = XLSX.utils
         .sheet_to_json(worksheet, { header: 1 })
         .flat()
-        .map(String) as string[];
+        .map((code) => String(code).split(" ")[0]);
 
       const prepareList = Array.from(new Set([...usedCodes, ...newCodes]));
 
