@@ -2,7 +2,7 @@ import { Box, Button } from "@chakra-ui/react";
 import { useState, useRef, useEffect } from "react";
 import { HiPause, HiPlay } from "react-icons/hi";
 
-import audio from "../../assets/audio/vint.mp3";
+import audio from "../../assets/audio/soldat.mp3";
 
 const AudioPlayer = () => {
   // Ссылка для управления аудио компонентом
