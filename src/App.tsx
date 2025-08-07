@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import {
   Box,
   Button,
@@ -7,12 +7,17 @@ import {
   Heading,
   NumberInput,
   Text,
+  HStack,
+  Clipboard,
+  IconButton,
+  VStack,
 } from "@chakra-ui/react";
 import axios from "axios";
 import * as XLSX from "xlsx";
 
 import { toaster } from "./components/ui/toaster";
 import { generateEANs } from "./utils/ean";
+import FileUploadButton from "./components/ui/file-upload-button";
 
 const API = "https://ean-back.onrender.com/api";
 
@@ -20,7 +25,6 @@ export default function App() {
   const [mask, setMask] = useState("160x");
   const [count, setCount] = useState(1);
   const [codes, setCodes] = useState<string[]>([]);
-  const [file, setFile] = useState<File | null>(null);
   const [usedCodes, setUsedCodes] = useState<string[]>([]);
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -58,17 +62,14 @@ export default function App() {
     window.open(`${API}/codes/download`, "_blank");
   };
 
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFile(e.target.files?.[0] || null);
-  };
-
-  const handleUpload = async () => {
+  const handleUpload = async (file: File) => {
     if (!file) return;
     const formData = new FormData();
     formData.append("file", file);
     await axios.post(`${API}/codes/upload`, formData);
     fetchUsedCodes();
     toaster.success({ title: "Файл загружен" });
+    setCodes([]);
   };
 
   // Сохранить новые коды в XLSX и отправить на сервер
@@ -124,33 +125,39 @@ export default function App() {
             <NumberInput.Input />
           </NumberInput.Root>
         </Box>
-        <Button colorScheme="blue" onClick={handleGenerate}>
+        <Button onClick={handleGenerate} colorPalette="blue">
           Сгенерировать
         </Button>
         {codes.length > 0 && (
-          <Box>
-            {codes.map((code, index) => (
-              <Box key={index} p={2} borderWidth={1} borderRadius="md" mt={1}>
-                {code}
-              </Box>
+          <VStack gap={2}>
+            {codes.map((code) => (
+              <HStack
+                key={code}
+                width="full"
+                justifyContent="space-between"
+                borderWidth={1}
+                p={2}
+                borderRadius="md"
+              >
+                <Text>{code}</Text>
+                <Clipboard.Root value={code} timeout={Infinity}>
+                  <Clipboard.Trigger asChild>
+                    <IconButton variant="surface" size="xs">
+                      <Clipboard.Indicator />
+                    </IconButton>
+                  </Clipboard.Trigger>
+                </Clipboard.Root>
+              </HStack>
             ))}
-          </Box>
+          </VStack>
         )}
-        <Box>
-          <Button onClick={handleDownload} colorScheme="green" mr={2}>
-            Скачать xlsx
-          </Button>
-          <Input
-            type="file"
-            accept=".xlsx"
-            onChange={handleFileChange}
-            display="inline-block"
-            width="auto"
-          />
-          <Button onClick={handleUpload} colorScheme="orange" ml={2}>
-            Загрузить новый xlsx
-          </Button>
-        </Box>
+
+        <Button onClick={handleDownload} colorPalette="green">
+          Скачать список кодов
+        </Button>
+
+        <FileUploadButton onFileSelected={handleUpload} />
+
         <Box>
           <Text mt={4} fontWeight="bold">
             Использованные коды
@@ -165,6 +172,12 @@ export default function App() {
             {usedCodes.map((code) => (
               <Text key={code}>{code}</Text>
             ))}
+
+            {usedCodes.length === 0 && (
+              <Text textAlign="center" color="GrayText">
+                Пока что пусто
+              </Text>
+            )}
           </Box>
         </Box>
       </Stack>
