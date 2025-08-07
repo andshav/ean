@@ -103,7 +103,8 @@ export default function App() {
       const worksheet = workbook.Sheets[firstSheetName];
       const codes = XLSX.utils
         .sheet_to_json(worksheet, { header: 1 })
-        .flat() as string[];
+        .flat()
+        .map(String) as string[];
 
       try {
         await addCodeCollection(codes);
@@ -256,11 +257,10 @@ export default function App() {
               <HiUpload /> Загрузить новый список
             </Button>
           </FileUpload.Trigger>
-          <FileUpload.List />
         </FileUpload.Root>
 
-        <Box>
-          <Span mt={4}>
+        <Box mt={4}>
+          <Span>
             <Span fontWeight="bold">Использованные коды </Span>
             {!isFetching && (
               <Span mt={4} fontWeight="bold">
@@ -275,6 +275,7 @@ export default function App() {
             borderWidth={1}
             p={2}
             borderRadius="md"
+            mt={2}
           >
             {renderUsedCodes()}
           </Box>
