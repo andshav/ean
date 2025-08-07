@@ -25,7 +25,7 @@ import {
   getLatestCodes,
   updateLatestDocument,
 } from "./utils/firebase";
-import { HiDownload, HiUpload } from "react-icons/hi";
+import { HiDownload, HiPlus, HiUpload } from "react-icons/hi";
 import { FaMagic } from "react-icons/fa";
 
 export default function App() {
@@ -73,15 +73,23 @@ export default function App() {
       setIsGenerating(true);
       const newCodes = generateEANs(mask, count, usedCodes);
       setCodes(newCodes);
-      setUsedCodes((prev) => [...prev, ...newCodes]);
+
+      const prepareList = Array.from(new Set([...usedCodes, ...newCodes]));
+
+      if (prepareList.length <= usedCodes.length) {
+        return;
+      }
+
+      setUsedCodes(prepareList);
       toaster.success({ title: "Коды сгенерированы" });
+
+      await updateList(prepareList);
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (e: any) {
       toaster.error({
         title: "Ошибка генерации",
         description: e?.message,
       });
-      setIsGenerating(false);
     }
   };
 
@@ -106,47 +114,56 @@ export default function App() {
         .flat()
         .map(String) as string[];
 
-      try {
-        await addCodeCollection(codes);
-        toaster.success({
-          title: "Добавлен новый список",
-        });
-        fetchUsedCodes();
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (e: any) {
-        toaster.error({
-          title: "Ошибка загрузки файла",
-          description: e?.message,
-        });
-      }
+      await addCodeCollection(codes);
+      toaster.success({
+        title: "Загружен новый список",
+      });
+      fetchUsedCodes();
     };
     reader.readAsArrayBuffer(file);
   };
 
-  useEffect(() => {
-    if (usedCodes.length === 0) {
-      return;
-    }
+  const handleAppend = async (file: File) => {
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const data = new Uint8Array(e.target?.result as ArrayBuffer);
+      const workbook = XLSX.read(data, { type: "array" });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const newCodes = XLSX.utils
+        .sheet_to_json(worksheet, { header: 1 })
+        .flat()
+        .map(String) as string[];
 
-    const asyncUpdate = async () => {
-      try {
-        await updateLatestDocument(usedCodes);
-        toaster.success({ title: "Список успешно обновлен" });
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      } catch (e: any) {
-        toaster.error({
-          title: "Ошибка обновления списка",
-          description: e?.message,
-        });
-      } finally {
-        setIsGenerating(false);
+      const prepareList = Array.from(new Set([...usedCodes, ...newCodes]));
+
+      if (prepareList.length <= usedCodes.length) {
+        return;
       }
-    };
 
-    setIsGenerating(true);
-    asyncUpdate();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [codes]);
+      setUsedCodes(prepareList);
+      toaster.success({
+        title: "Список успешно расширен",
+      });
+
+      await updateList(prepareList);
+    };
+    reader.readAsArrayBuffer(file);
+  };
+
+  const updateList = async (codes: string[]) => {
+    try {
+      await updateLatestDocument(codes);
+      toaster.success({ title: "Список успешно обновлен" });
+      await fetchUsedCodes();
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      toaster.error({
+        title: "Ошибка обновления списка",
+        description: e?.message,
+      });
+    }
+  };
 
   const renderUsedCodes = () => {
     if (isFetching) {
@@ -238,9 +255,26 @@ export default function App() {
           )}
         </Stack>
 
-        <Button onClick={handleDownload} colorPalette="green">
+        <Button onClick={handleDownload} colorPalette="purple">
           <HiDownload /> Скачать список
         </Button>
+
+        <FileUpload.Root
+          accept=".xlsx"
+          onFileChange={(e) => {
+            const file = e.acceptedFiles[0];
+            if (file) {
+              handleAppend(file);
+            }
+          }}
+        >
+          <FileUpload.HiddenInput />
+          <FileUpload.Trigger asChild>
+            <Button width="full" colorPalette="green">
+              <HiPlus /> Расширить список
+            </Button>
+          </FileUpload.Trigger>
+        </FileUpload.Root>
 
         <FileUpload.Root
           accept=".xlsx"
