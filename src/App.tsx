@@ -11,17 +11,22 @@ import {
   Clipboard,
   IconButton,
   VStack,
+  Span,
+  FileUpload,
+  ProgressCircle,
 } from "@chakra-ui/react";
 import * as XLSX from "xlsx";
 
 import { toaster } from "./components/ui/toaster";
 import { generateEANs } from "./utils/ean";
-import FileUploadButton from "./components/ui/file-upload-button";
+
 import {
   addCodeCollection,
   getLatestCodes,
   updateLatestDocument,
 } from "./utils/firebase";
+import { HiDownload, HiUpload } from "react-icons/hi";
+import { FaMagic } from "react-icons/fa";
 
 export default function App() {
   const [mask, setMask] = useState("160x");
@@ -30,19 +35,34 @@ export default function App() {
   const [usedCodes, setUsedCodes] = useState<string[]>([]);
 
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isFetching, setIsFetching] = useState(false);
 
   useEffect(() => {
     fetchUsedCodes();
   }, []);
 
   const fetchUsedCodes = async () => {
-    const res = await getLatestCodes();
-    setUsedCodes((prev) => {
-      if (JSON.stringify(prev) !== JSON.stringify(res)) {
-        return res;
-      }
-      return prev;
-    });
+    if (isFetching) {
+      return;
+    }
+    setIsFetching(true);
+    try {
+      const res = await getLatestCodes();
+      setUsedCodes((prev) => {
+        if (JSON.stringify(prev) !== JSON.stringify(res)) {
+          return res;
+        }
+        return prev;
+      });
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    } catch (e: any) {
+      toaster.error({
+        title: "Ошибка загрузки списка",
+        description: e?.message,
+      });
+    } finally {
+      setIsFetching(false);
+    }
   };
 
   const handleGenerate = async () => {
@@ -127,6 +147,37 @@ export default function App() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [codes]);
 
+  const renderUsedCodes = () => {
+    if (isFetching) {
+      return (
+        <Stack justifyContent="center" alignItems="center" p={10}>
+          <ProgressCircle.Root value={null}>
+            <ProgressCircle.Circle>
+              <ProgressCircle.Track />
+              <ProgressCircle.Range />
+            </ProgressCircle.Circle>
+          </ProgressCircle.Root>
+        </Stack>
+      );
+    }
+
+    if (usedCodes.length === 0) {
+      return (
+        <Text textAlign="center" color="GrayText">
+          Пока что пусто
+        </Text>
+      );
+    }
+
+    return (
+      <>
+        {usedCodes.map((code) => (
+          <Text key={code}>{code}</Text>
+        ))}
+      </>
+    );
+  };
+
   return (
     <Box
       maxW="700px"
@@ -159,7 +210,7 @@ export default function App() {
         </Box>
         <Stack mb={4}>
           <Button onClick={handleGenerate} colorPalette="blue" size={"2xl"}>
-            Сгенерировать
+            <FaMagic /> Сгенерировать
           </Button>
           {codes.length > 0 && (
             <VStack gap={2}>
@@ -187,15 +238,37 @@ export default function App() {
         </Stack>
 
         <Button onClick={handleDownload} colorPalette="green">
-          Скачать список кодов
+          <HiDownload /> Скачать список
         </Button>
 
-        <FileUploadButton onFileSelected={handleUpload} />
+        <FileUpload.Root
+          accept=".xlsx"
+          onFileChange={(e) => {
+            const file = e.acceptedFiles[0];
+            if (file) {
+              handleUpload(file);
+            }
+          }}
+        >
+          <FileUpload.HiddenInput />
+          <FileUpload.Trigger asChild>
+            <Button width="full" colorPalette="orange">
+              <HiUpload /> Загрузить новый список
+            </Button>
+          </FileUpload.Trigger>
+          <FileUpload.List />
+        </FileUpload.Root>
 
         <Box>
-          <Text mt={4} fontWeight="bold">
-            {`Использованные коды (${usedCodes.length})`}
-          </Text>
+          <Span mt={4}>
+            <Span fontWeight="bold">Использованные коды </Span>
+            {!isFetching && (
+              <Span mt={4} fontWeight="bold">
+                ({usedCodes.length})
+              </Span>
+            )}
+          </Span>
+
           <Box
             maxH="200px"
             overflowY="auto"
@@ -203,15 +276,7 @@ export default function App() {
             p={2}
             borderRadius="md"
           >
-            {usedCodes.map((code) => (
-              <Text key={code}>{code}</Text>
-            ))}
-
-            {usedCodes.length === 0 && (
-              <Text textAlign="center" color="GrayText">
-                Пока что пусто
-              </Text>
-            )}
+            {renderUsedCodes()}
           </Box>
         </Box>
       </Stack>
