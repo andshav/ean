@@ -26,10 +26,10 @@ const AudioPlayer = () => {
   };
 
   useEffect(() => {
-    const audio = audioRef.current;
-    if (audio && audio.currentTime === 0) {
-      audio.currentTime = 25;
-    }
+    // const audio = audioRef.current;
+    // if (audio && audio.currentTime === 0) {
+    //   audio.currentTime = 25;
+    // }
     const handleAutoplay = () => {
       if (isPlaying === undefined && !localIsPlaying) {
         togglePlayback();
