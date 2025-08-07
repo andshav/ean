@@ -128,53 +128,63 @@ export default function App() {
   }, [codes]);
 
   return (
-    <Box maxW="700px" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="lg">
+    <Box
+      maxW="700px"
+      mx="auto"
+      mt={[0, 10]}
+      p={6}
+      borderWidth={[0, 2]}
+      borderRadius="lg"
+    >
       <Heading mb={4}>Генерация EAN-кодов</Heading>
-      <Stack gap={4}>
+      <Stack gap={2}>
         <Box>
           <Text>Маска</Text>
           <Input
-            value={mask}
-            onChange={(e) => setMask(e.target.value)}
+            defaultValue={mask}
             maxLength={12}
+            onBlur={(e) => setMask(e.target.value)}
           />
         </Box>
         <Box>
           <Text>Количество кодов</Text>
-          <NumberInput.Root
-            onValueChange={(e) => setCount(+e.value)}
-            defaultValue={`${count}`}
-          >
+          <NumberInput.Root defaultValue={`${count}`} max={1000}>
             <NumberInput.Control />
-            <NumberInput.Input />
+            <NumberInput.Input
+              onBlur={(e) => {
+                setCount(+e.target.value);
+              }}
+            />
           </NumberInput.Root>
         </Box>
-        <Button onClick={handleGenerate} colorPalette="blue">
-          Сгенерировать
-        </Button>
-        {codes.length > 0 && (
-          <VStack gap={2}>
-            {codes.map((code) => (
-              <HStack
-                key={code}
-                width="full"
-                justifyContent="space-between"
-                borderWidth={1}
-                p={2}
-                borderRadius="md"
-              >
-                <Text>{code}</Text>
-                <Clipboard.Root value={code} timeout={Infinity}>
-                  <Clipboard.Trigger asChild>
-                    <IconButton variant="surface" size="xs">
-                      <Clipboard.Indicator />
-                    </IconButton>
-                  </Clipboard.Trigger>
-                </Clipboard.Root>
-              </HStack>
-            ))}
-          </VStack>
-        )}
+        <Stack mb={4}>
+          <Button onClick={handleGenerate} colorPalette="blue" size={"2xl"}>
+            Сгенерировать
+          </Button>
+          {codes.length > 0 && (
+            <VStack gap={2}>
+              {codes.map((code) => (
+                <HStack
+                  key={code}
+                  width="full"
+                  justifyContent="space-between"
+                  borderWidth={1}
+                  p={2}
+                  borderRadius="md"
+                >
+                  <Text>{code}</Text>
+                  <Clipboard.Root value={code} timeout={Infinity}>
+                    <Clipboard.Trigger asChild>
+                      <IconButton variant="surface" size="xs">
+                        <Clipboard.Indicator />
+                      </IconButton>
+                    </Clipboard.Trigger>
+                  </Clipboard.Root>
+                </HStack>
+              ))}
+            </VStack>
+          )}
+        </Stack>
 
         <Button onClick={handleDownload} colorPalette="green">
           Скачать список кодов
@@ -184,7 +194,7 @@ export default function App() {
 
         <Box>
           <Text mt={4} fontWeight="bold">
-            Использованные коды
+            {`Использованные коды (${usedCodes.length})`}
           </Text>
           <Box
             maxH="200px"

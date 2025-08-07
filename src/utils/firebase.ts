@@ -66,7 +66,6 @@ export async function getLatestCodes() {
 
 // Функция для обновления документа, где latest: true
 export async function updateLatestDocument(newCodes: string[]) {
-  console.log("updateLatestDocument");
   const codesCollectionRef = collection(db, CODES_COLLECTION);
   const q = query(codesCollectionRef, where("latest", "==", true));
 
