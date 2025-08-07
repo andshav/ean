@@ -27,6 +27,7 @@ import {
 } from "./utils/firebase";
 import { HiDownload, HiPlus, HiUpload } from "react-icons/hi";
 import { FaMagic } from "react-icons/fa";
+import AudioPlayer from "./components/audio-player";
 
 export default function App() {
   const [mask, setMask] = useState("160x");
@@ -331,6 +332,8 @@ export default function App() {
           </Box>
         </Box>
       </Stack>
+
+      <AudioPlayer />
     </Box>
   );
 }
