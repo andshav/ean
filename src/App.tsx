@@ -12,14 +12,16 @@ import {
   IconButton,
   VStack,
 } from "@chakra-ui/react";
-import axios from "axios";
 import * as XLSX from "xlsx";
 
 import { toaster } from "./components/ui/toaster";
 import { generateEANs } from "./utils/ean";
 import FileUploadButton from "./components/ui/file-upload-button";
-
-const API = "https://ean-back.onrender.com/api";
+import {
+  addCodeCollection,
+  getLatestCodes,
+  updateLatestDocument,
+} from "./utils/firebase";
 
 export default function App() {
   const [mask, setMask] = useState("160x");
@@ -34,8 +36,13 @@ export default function App() {
   }, []);
 
   const fetchUsedCodes = async () => {
-    const res = await axios.get<string[]>(`${API}/codes`);
-    setUsedCodes(res.data);
+    const res = await getLatestCodes();
+    setUsedCodes((prev) => {
+      if (JSON.stringify(prev) !== JSON.stringify(res)) {
+        return res;
+      }
+      return prev;
+    });
   };
 
   const handleGenerate = async () => {
@@ -59,49 +66,66 @@ export default function App() {
   };
 
   const handleDownload = () => {
-    window.open(`${API}/codes/download`, "_blank");
+    const worksheet = XLSX.utils.aoa_to_sheet(usedCodes.map((code) => [code]));
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Codes");
+
+    // Создание XLSX файла
+    XLSX.writeFile(workbook, "codes.xlsx");
   };
 
   const handleUpload = async (file: File) => {
-    if (!file) return;
-    const formData = new FormData();
-    formData.append("file", file);
-    await axios.post(`${API}/codes/upload`, formData);
-    fetchUsedCodes();
-    toaster.success({ title: "Файл загружен" });
-    setCodes([]);
-  };
+    const reader = new FileReader();
+    reader.onload = async (e) => {
+      const data = new Uint8Array(e.target?.result as ArrayBuffer);
+      const workbook = XLSX.read(data, { type: "array" });
+      const firstSheetName = workbook.SheetNames[0];
+      const worksheet = workbook.Sheets[firstSheetName];
+      const codes = XLSX.utils
+        .sheet_to_json(worksheet, { header: 1 })
+        .flat() as string[];
 
-  // Сохранить новые коды в XLSX и отправить на сервер
-  const handleSaveToServer = async () => {
-    if (codes.length === 0) return;
-    setIsGenerating(true);
-    // Загрузить существующие коды
-    const allCodes = usedCodes.map((code) => [code]);
-    console.log({ usedCodes });
-    const ws = XLSX.utils.aoa_to_sheet(allCodes);
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, "Codes");
-    const wbout = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-    const blob = new Blob([wbout], { type: "application/octet-stream" });
-    const formData = new FormData();
-    formData.append("file", new File([blob], "ean_codes.xlsx"));
-    try {
-      await axios.post(`${API}/codes/update`, formData);
-      toaster.success({ title: "Коды добавлены и сохранены" });
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    } catch (e: any) {
-      toaster.error({
-        title: e.message,
-      });
-    } finally {
-      setIsGenerating(false);
-    }
+      try {
+        await addCodeCollection(codes);
+        toaster.success({
+          title: "Добавлен новый список",
+        });
+        fetchUsedCodes();
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (e: any) {
+        toaster.error({
+          title: "Ошибка загрузки файла",
+          description: e?.message,
+        });
+      }
+    };
+    reader.readAsArrayBuffer(file);
   };
 
   useEffect(() => {
-    handleSaveToServer();
-  }, [usedCodes]);
+    if (usedCodes.length === 0) {
+      return;
+    }
+
+    const asyncUpdate = async () => {
+      try {
+        await updateLatestDocument(usedCodes);
+        toaster.success({ title: "Список успешно обновлен" });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      } catch (e: any) {
+        toaster.error({
+          title: "Ошибка обновления списка",
+          description: e?.message,
+        });
+      } finally {
+        setIsGenerating(false);
+      }
+    };
+
+    setIsGenerating(true);
+    asyncUpdate();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [codes]);
 
   return (
     <Box maxW="700px" mx="auto" mt={8} p={6} borderWidth={1} borderRadius="lg">
