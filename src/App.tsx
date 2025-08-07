@@ -277,7 +277,7 @@ export default function App() {
         </Button>
 
         <FileUpload.Root
-          accept=".xlsx"
+          accept=".xlsx, .xls"
           onFileChange={(e) => {
             const file = e.acceptedFiles[0];
             if (file) {
@@ -294,7 +294,7 @@ export default function App() {
         </FileUpload.Root>
 
         <FileUpload.Root
-          accept=".xlsx"
+          accept=".xlsx, .xls"
           onFileChange={(e) => {
             const file = e.acceptedFiles[0];
             if (file) {
