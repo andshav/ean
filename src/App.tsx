@@ -32,7 +32,7 @@ import AudioPlayer from "./components/audio-player";
 export default function App() {
   const [mask, setMask] = useState("160x");
   const [count, setCount] = useState(1);
-  const [codes, setCodes] = useState<string[]>([]);
+  const [codes, setCodes] = useState<string[]>(["123123455", "12341234123"]);
   const [usedCodes, setUsedCodes] = useState<string[]>([]);
 
   const [isGenerating, setIsGenerating] = useState(false);
@@ -270,8 +270,15 @@ export default function App() {
               ))}
             </VStack>
           )}
-        </Stack>
 
+          <Clipboard.Root value={codes.join("\n")}>
+            <Clipboard.Trigger asChild>
+              <Button variant="surface" width="full">
+                <Clipboard.Indicator /> Скопировать всё
+              </Button>
+            </Clipboard.Trigger>
+          </Clipboard.Root>
+        </Stack>
         <Button onClick={handleDownload} colorPalette="purple">
           <HiDownload /> Скачать список
         </Button>
