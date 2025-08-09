@@ -32,7 +32,7 @@ import AudioPlayer from "./components/audio-player";
 export default function App() {
   const [mask, setMask] = useState("160x");
   const [count, setCount] = useState(1);
-  const [codes, setCodes] = useState<string[]>(["123123455", "12341234123"]);
+  const [codes, setCodes] = useState<string[]>([]);
   const [usedCodes, setUsedCodes] = useState<string[]>([]);
 
   const [isGenerating, setIsGenerating] = useState(false);
