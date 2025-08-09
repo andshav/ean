@@ -271,13 +271,15 @@ export default function App() {
             </VStack>
           )}
 
-          <Clipboard.Root value={codes.join("\n")}>
-            <Clipboard.Trigger asChild>
-              <Button variant="surface" width="full">
-                <Clipboard.Indicator /> Скопировать всё
-              </Button>
-            </Clipboard.Trigger>
-          </Clipboard.Root>
+          {codes.length > 0 && (
+            <Clipboard.Root value={codes.join("\n")}>
+              <Clipboard.Trigger asChild>
+                <Button variant="surface" width="full">
+                  <Clipboard.Indicator /> Скопировать всё
+                </Button>
+              </Clipboard.Trigger>
+            </Clipboard.Root>
+          )}
         </Stack>
         <Button onClick={handleDownload} colorPalette="purple">
           <HiDownload /> Скачать список
